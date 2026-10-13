@@ -1,0 +1,56 @@
+# Local development services.
+#
+#   docker compose up -d postgres         # the database (always needed)
+#   docker compose --profile redis up -d  # also a Redis, ONLY if you have none
+#
+# The application and Celery worker still run natively for now, so code
+# changes reload instantly. Containers for them are added with the production
+# infrastructure work.
+#
+# Host ports are deliberately not the defaults. A native PostgreSQL service on
+# 5432 and a native Redis on 6379 are common on a developer machine, and a
+# container that silently fails to bind, or worse binds a different
+# interface, produces a confusing "connected to the wrong database" failure.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gstr2b-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gstr2b}
+      # No default on purpose: a committed default password is a credential
+      # in the repository. Compose fails loudly if it is unset.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the project-root .env (see .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:-gstr2b}
+    ports:
+      # Bound to loopback only, so the database is not reachable from the LAN.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - gstr2b_pgdata:/var/lib/postgresql/data
+      # Creates the separate database the test suite runs against, so tests
+      # can never touch development data. Runs once, on first initialisation.
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gstr2b} -d ${POSTGRES_DB:-gstr2b}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Opt-in. Skip this if a Redis is already running on your machine.
+  redis:
+    image: redis:7-alpine
+    container_name: gstr2b-redis
+    profiles: ["redis"]
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  gstr2b_pgdata:

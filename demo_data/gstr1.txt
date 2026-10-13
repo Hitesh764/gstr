@@ -1,0 +1,2746 @@
+GSTR 1 Automation
+1. Start with a "GSTR-1 Control Center"
+Instead of giving the accountant an Excel sheet, give them a dashboard.
+For example:
+September GSTR-1
+1,284 invoices
+Check	Result
+Total invoices	1,284
+B2B	642
+B2C	591
+Export	32
+Credit notes	15
+Debit notes	4
+Potential duplicates	7
+GSTIN errors	11
+Tax calculation errors	9
+HSN/SAC issues	14
+Missing information	23
+Books vs GSTR-1 difference	₹1.82L
+Then the accountant doesn't have to manually inspect everything.
+They focus on:
+"Show me the 64 transactions that need my attention."
+That's the product.
+
+2. Automatic B2B / B2C classification
+This is one of the first things you can automate.
+Suppose your system receives:
+Invoice       Customer GSTIN       Amount
+INV-1001      27ABCDE1234F1Z5      ₹50,000
+INV-1002      —                    ₹12,000
+INV-1003      29ABCDE1234F1Z9      ₹80,000
+Your rules engine can identify whether the transaction should fall into the applicable reporting category based on the transaction data and GST rules.
+For example:
+INV-1001 → B2B
+INV-1002 → B2C
+INV-1003 → B2B
+Instead of an accountant manually categorizing hundreds/thousands of invoices.
+Better version
+Don't just classify.
+Show why:
+B2B — valid GSTIN found
+B2C — recipient GSTIN unavailable
+That makes the automation explainable.
+
+3. GSTIN validation
+This can save a lot of manual checking.
+Example:
+Customer GSTIN:
+27ABCDE1234F1Z5
+        ↓
+GSTIN validation
+✓ Format valid
+✓ State code = Maharashtra
+✓ GSTIN belongs to customer
+If something is wrong:
+⚠ GSTIN issue
+
+Entered:
+27ABCDE1234F1Z5
+
+Customer master:
+27ABCDE1234F1Z6
+
+Possible GSTIN mismatch
+The accountant gets an exception rather than discovering it later.
+
+4. Duplicate invoice detection
+This is another very useful automation.
+Don't only check:
+Invoice number = same
+Use multiple signals.
+For example:
+Customer GSTIN
++
+Invoice number
++
+Invoice date
++
+Taxable amount
++
+Tax amount
+Suppose:
+ABC Ltd
+INV-102
+01/09/2026
+₹50,000
+GST ₹9,000
+appears twice.
+Your system:
+🔴 Possible duplicate invoice
+But you can make it smarter.
+Suppose invoice numbers differ:
+INV-102
+INV102
+Same customer + same date + same amount.
+Your system can say:
+🟠 Possible duplicate — 92% similarity
+Then the accountant decides.
+Important: Don't automatically delete or reject it. Flag it for review.
+
+5. GST rate validation
+This is another major feature.
+Suppose the invoice says:
+Product: XYZ
+HSN: XXXXX
+Taxable value: ₹1,00,000
+GST rate: 18%
+Your system can compare the transaction's HSN/SAC and applicable tax treatment against your maintained GST rules/reference data.
+If the expected treatment differs:
+⚠ Tax rate requires review
+
+HSN: XXXXX
+Invoice rate: 18%
+Reference rate: 12%
+
+Potential tax-rate mismatch
+This should be presented as "requires review", not:
+"The correct rate is definitely 12%."
+Because GST treatment can depend on facts, classification, exemptions, notifications, effective dates, etc.
+
+
+6. Automatic tax calculation checking
+This is very straightforward to automate.
+Suppose:
+Taxable value = ₹1,00,000
+GST rate = 18%
+Expected:
+GST = ₹18,000
+But invoice contains:
+CGST = ₹7,000
+SGST = ₹7,000
+
+Total = ₹14,000
+System:
+🔴 Tax amount mismatch
+Expected based on entered rate/value:
+₹18,000
+Reported:
+₹14,000
+Difference:
+₹4,000
+
+7. CGST / SGST / IGST validation
+This is particularly useful.
+For example:
+Seller state: Maharashtra
+Customer state: Maharashtra
+GST: ₹18,000
+The transaction may require the applicable intra-state tax treatment.
+Your system can check whether the invoice's tax components are consistent with the transaction data.
+For example:
+Invoice:
+IGST = ₹18,000
+CGST = ₹0
+SGST = ₹0
+
+⚠ Review required
+Similarly, for an inter-state transaction, your rules can check whether the tax components appear consistent with the supplied place-of-supply information.
+Again, flag → accountant reviews.
+
+
+
+
+
+
+
+8. HSN/SAC validation
+This is another good automation opportunity.
+Your system can check:
+Invoice
+ ↓
+HSN/SAC
+ ↓
+Description
+ ↓
+Tax rate/reference data
+ ↓
+GSTR-1 requirements
+Example:
+Description:
+Software consulting service
+SAC:
+XXXXXX
+
+GST: 18%
+✓ Data complete
+Or:
+Description:
+Restaurant service
+HSN/SAC:
+XXXXXX
+⚠ Classification requires review
+You could also identify:
+•	missing HSN/SAC
+•	invalid format
+•	inconsistent HSN across invoices
+•	unusual HSN for a customer's historical transactions
+•	HSN missing where required
+
+
+9. HSN summary automation
+Instead of manually preparing the HSN summary, aggregate invoices automatically.
+Suppose:
+Invoice 101 → HSN A → ₹1L
+Invoice 102 → HSN A → ₹2L
+Invoice 103 → HSN B → ₹50K
+Invoice 104 → HSN A → ₹3L
+System automatically generates:
+HSN A
+Total taxable value: ₹6,00,000
+Tax: ₹1,08,000
+
+HSN B
+Total taxable value: ₹50,000
+Tax: ₹9,000
+The accountant reviews the summary instead of manually calculating it.
+
+
+
+10. Credit Note / Debit Note automation
+This is another area I would definitely include.
+Suppose:
+Original invoice:
+₹1,00,000
+
+Customer returned goods:
+₹20,000
+
+Credit note:
+₹20,000
+Your system can link:
+Original Invoice
+       ↓
+Credit Note
+       ↓
+Customer
+       ↓
+Tax impact
+Then check:
+•	Is the original invoice identifiable?
+•	Does the credit note exceed the relevant amount?
+•	Is the GST calculation consistent?
+•	Has it already been reported?
+•	Is it duplicated?
+This becomes a document relationship engine.
+
+
+
+11. Books vs GSTR-1 reconciliation
+This is probably one of the most valuable features.
+You already understand:
+GSTR-2B ↔ Books
+You can also build:
+GSTR-1 ↔ Books
+Example:
+Books
+Sales invoices = 1,250
+Sales value = ₹2.50 Cr
+GST = ₹45L
+GSTR-1 preparation data
+Invoices = 1,238
+Sales value = ₹2.47 Cr
+GST = ₹44.46L
+System:
+🔴 12 invoices missing
+🔴 ₹3 lakh taxable value difference
+🔴 ₹54,000 tax difference
+Then show the actual invoices.
+12. Missing invoice detection
+This should be a separate feature.
+Example:
+Books:
+INV-1001
+INV-1002
+INV-1003
+INV-1004
+INV-1005
+GSTR-1 dataset:
+INV-1001
+INV-1002
+INV-1004
+INV-1005
+System:
+🔴 INV-1003 exists in books but is missing from GSTR-1 data.
+That's much more useful than simply saying:
+"There is a difference."
+
+13. Invoice-number sequence checking
+This is simple but surprisingly useful.
+Example:
+INV-1001
+INV-1002
+INV-1003
+INV-1005
+INV-1006
+System:
+🟡 INV-1004 missing from sequence.
+But don't automatically call it an error.
+The accountant might say:
+"INV-1004 was cancelled."
+Then the system records the explanation.
+14. Cancelled invoice checking
+Suppose accounting software contains:
+INV-1050
+Status: Cancelled
+But the GSTR-1 preparation data contains it as a normal sale.
+System:
+🔴 Cancelled invoice included in GSTR-1 preparation.
+Or the opposite:
+🟠 Invoice marked cancelled in books but reported as active.
+Again, accountant reviews.
+
+
+15. Customer master-data checking
+You can build a Customer Master Health Check.
+For every customer:
+Customer
+GSTIN
+State
+Registration status/reference data
+Place of supply
+B2B/B2C classification
+Then detect:
+⚠ GSTIN missing
+⚠ GSTIN mismatch
+⚠ State mismatch
+⚠ Duplicate customer
+⚠ Inconsistent GSTIN
+This prevents errors before GSTR-1 preparation.
+
+
+
+
+
+16. Month-to-month anomaly detection
+This is where you can start using AI.
+Suppose a company normally has:
+Monthly sales:
+₹90L
+₹95L
+₹1.02Cr
+₹98L
+₹1.01Cr
+Suddenly:
+₹3.8Cr
+Your system can say:
+🟠 Significant change from historical sales — review recommended.
+Or:
+Normally:
+B2B = 80%
+B2C = 20%
+
+September:
+B2B = 42%
+B2C = 58%
+System:
+🟠 B2B/B2C distribution changed significantly compared with previous periods.
+This isn't saying there is an error. It is saying:
+"This deserves human attention."
+That's a much safer and more useful AI feature.
+
+
+
+
+
+
+
+
+17. AI-generated exception explanation
+This could make your product feel much better than a traditional GST utility.
+Instead of:
+ERROR 1042
+Show:
+GST amount mismatch
+Invoice INV-1042 has taxable value of ₹80,000 and GST rate of 18%. The invoice contains ₹12,000 GST, while ₹14,400 would result from the entered rate. Please review the invoice.
+Then give:
+[Open Invoice] [Mark Reviewed] [Send to Client]
+
+
+18. Client query automation
+This is another big opportunity for CA firms.
+Suppose 30 invoices have problems.
+Instead of the accountant manually WhatsApping the client:
+"Please send invoice 102, 105, 108..."
+Your system can generate:
+Missing information
+Please provide the GSTIN/place-of-supply details for the following invoices...
+Tax mismatch
+Please confirm the GST rate applied to these invoices...
+Missing invoices
+The following sales invoices appear in the books but are not included in the GSTR-1 data...
+Then the accountant can send the request to the client.
+
+
+
+
+
+
+
+
+
+19. Review workflow
+This is important.
+Don't build software where AI automatically changes everything.
+Build:
+DETECTED
+   ↓
+EXCEPTION
+   ↓
+ACCOUNTANT REVIEW
+   ↓
+Accept / Correct / Ignore
+   ↓
+RECHECK
+   ↓
+READY FOR GSTR-1
+For every issue:
+Example
+INV-1042
+GST amount mismatch
+AI/Rules:
+Expected: ₹18,000
+Reported: ₹16,200
+Accountant:
+[Correct] [Accept as valid] [Ignore]
+The system stores the decision.
+
+
+ 
+
+
+# Build a Production-Ready GSTR-1 Automation & Review Platform for Indian CA Firms
+
+## 1. ROLE
+
+Act as a **Senior GST Domain Researcher, Senior Product Architect, Senior Full-Stack Developer, Data Engineer, and QA Engineer** with experience building Indian accounting/tax-compliance SaaS products.
+
+I want to build a real SaaS product for **CA firms, accountants, tax professionals, and businesses** that automates the repetitive work involved in preparing, validating, reconciling, reviewing, and generating **GSTR-1**.
+
+Do NOT build a simple CRUD dashboard or a fake demo.
+
+Build the architecture and product as if it will eventually handle:
+
+- 10–500+ GSTINs per CA firm
+- hundreds/thousands of invoices per GSTIN
+- monthly and quarterly filing workflows
+- Excel/CSV imports
+- Tally/ERP exports
+- accounting software integrations
+- e-invoice/e-way bill data where legally/technically available
+- GST portal/GSP integrations in future
+- complete audit trails
+- accountant review
+- CA approval
+- correction workflows
+- client collaboration
+
+The product should automate repetitive work while keeping the **accountant/CA in control of professional decisions**.
+
+---
+
+# 2. PRODUCT OBJECTIVE
+
+The core product should answer:
+
+> "Can an accountant import a client's sales data and have the system automatically prepare, classify, validate, reconcile, identify errors, generate exceptions, prepare GSTR-1 data, and make the return ready for human review?"
+
+The product workflow should be:
+
+```text
+CLIENT / ACCOUNTING DATA
+        ↓
+DATA IMPORT
+        ↓
+DATA NORMALIZATION
+        ↓
+CUSTOMER + PRODUCT MASTER
+        ↓
+B2B / B2C / EXPORT / OTHER CLASSIFICATION
+        ↓
+GST VALIDATION
+        ↓
+TAX CALCULATION CHECK
+        ↓
+HSN/SAC VALIDATION
+        ↓
+DUPLICATE DETECTION
+        ↓
+CREDIT/DEBIT NOTE LINKING
+        ↓
+AMENDMENT CHECKS
+        ↓
+BOOKS ↔ GSTR-1 RECONCILIATION
+        ↓
+HSN SUMMARY GENERATION
+        ↓
+DOCUMENTS ISSUED CHECK
+        ↓
+EXCEPTION / ERROR QUEUE
+        ↓
+ACCOUNTANT REVIEW
+        ↓
+CA REVIEW / APPROVAL
+        ↓
+GSTR-1 DATA GENERATION
+        ↓
+FINAL VALIDATION
+        ↓
+GST PORTAL / GSP INTEGRATION
+        ↓
+FILING / ACKNOWLEDGEMENT
+```
+
+---
+
+# 3. IMPORTANT PRODUCT PRINCIPLE
+
+Do NOT position the software as:
+
+> "AI automatically files GST returns without human involvement."
+
+Instead position it as:
+
+> "An intelligent GSTR-1 preparation, validation and review platform that automates repetitive GST work and lets accountants/CA professionals focus on exceptions and professional judgment."
+
+Every automated decision must have:
+
+- reason
+- source data
+- rule used
+- confidence where AI is involved
+- ability to override
+- user who approved it
+- timestamp
+- audit history
+
+Never silently modify financial/tax data.
+
+---
+
+# 4. CURRENT GSTR-1 DOMAIN MODEL
+
+Research and implement the current GSTR-1 structure from authoritative GST sources before hard-coding rules.
+
+Do NOT rely on old blog posts or outdated GSTR-1 structures.
+
+GSTR-1 contains information relating to outward supplies, including relevant B2B/B2C supplies, exports, credit/debit notes, advances, amendments, HSN/SAC summaries, documents issued and applicable e-commerce transactions.
+
+The system must support the current applicable tables/configuration rather than assuming historical rules never change.
+
+Important areas include:
+
+- B2B supplies
+- B2C supplies
+- B2C large/inter-state consumer supplies where applicable
+- exports
+- credit notes
+- debit notes
+- amendments
+- advances
+- adjustment of advances
+- nil/exempt/non-GST supplies
+- HSN/SAC summary
+- documents issued
+- e-commerce operator-related reporting
+- applicable amendment tables
+- GSTR-1A workflow
+
+The system must make the GST rule engine **versioned by tax period**.
+
+Example:
+
+```text
+Rule Version:
+FY 2026-27
+Tax Period:
+September 2026
+```
+
+Never hard-code one tax rule permanently.
+
+---
+
+# 5. USER TYPES
+
+Implement role-based access control.
+
+## Super Admin
+
+Can:
+
+- manage organization
+- manage subscriptions
+- manage users
+- configure integrations
+- manage system settings
+- view audit logs
+
+## CA / Reviewer
+
+Can:
+
+- review exceptions
+- approve/reject corrections
+- review GST classifications
+- review tax treatment
+- approve GSTR-1
+- lock the return
+- view client history
+
+## Accountant
+
+Can:
+
+- import data
+- clean data
+- resolve errors
+- reconcile books
+- prepare GSTR-1
+- create client queries
+- submit for CA review
+
+## Client
+
+Can:
+
+- upload sales data
+- answer queries
+- provide missing invoices
+- view issue list
+- download reports
+
+## Read-only User
+
+Can only view data/reports.
+
+---
+
+# 6. MULTI-TENANT ARCHITECTURE
+
+Design the system as a multi-tenant SaaS.
+
+Hierarchy:
+
+```text
+Organization
+    ↓
+CA Firm
+    ↓
+Clients
+    ↓
+GSTINs
+    ↓
+Financial Years
+    ↓
+Tax Periods
+    ↓
+Returns
+```
+
+Example:
+
+```text
+ABC CA Firm
+
+Client 1
+ ├── GSTIN 27XXXX
+ ├── GSTIN 29XXXX
+
+Client 2
+ └── GSTIN 27YYYY
+
+Client 3
+ ├── GSTIN 24ZZZZ
+ └── GSTIN 06ZZZZ
+```
+
+Data must never leak between tenants.
+
+---
+
+# 7. DATA IMPORT ENGINE
+
+Support:
+
+### Phase 1
+
+- Excel
+- CSV
+- JSON
+- Tally exports
+- manually uploaded sales registers
+
+### Phase 2
+
+- Zoho Books
+- Busy
+- ERP
+- accounting APIs
+- e-invoice data
+- e-way bill data
+
+The GST Portal itself supports online preparation, offline JSON upload, and third-party ASP/GSP-based methods; design the architecture so future GST/GSP integration can be added without rewriting the core system.
+
+---
+
+# 8. SALES INVOICE DATA MODEL
+
+Create a normalized invoice model.
+
+Example:
+
+```text
+Invoice
+- id
+- organizationId
+- clientId
+- gstin
+- invoiceNumber
+- invoiceDate
+- financialYear
+- taxPeriod
+- customerId
+- customerGSTIN
+- customerName
+- customerState
+- placeOfSupply
+- supplyType
+- invoiceType
+- taxableValue
+- totalInvoiceValue
+- gstRate
+- igst
+- cgst
+- sgst
+- cess
+- reverseCharge
+- eCommerceOperator
+- exportType
+- sezFlag
+- deemedExport
+- irn
+- irnDate
+- eWayBillNumber
+- source
+- status
+- createdAt
+- updatedAt
+```
+
+Invoice line items:
+
+```text
+InvoiceItem
+- invoiceId
+- productId
+- description
+- HSN
+- SAC
+- quantity
+- UQC
+- taxableValue
+- gstRate
+- igst
+- cgst
+- sgst
+- cess
+```
+
+---
+
+# 9. DATA NORMALIZATION
+
+Before GST validation:
+
+Normalize:
+
+- invoice number
+- dates
+- GSTIN
+- state codes
+- tax amounts
+- decimal precision
+- HSN/SAC
+- UQC
+- customer names
+- product names
+- tax rates
+
+Example:
+
+```text
+INV-001
+inv-001
+INV001
+INV/001
+```
+
+Create a normalized representation for matching without destroying the original value.
+
+Always retain:
+
+```text
+originalValue
+normalizedValue
+```
+
+---
+
+# 10. B2B CLASSIFICATION ENGINE
+
+Automatically determine applicable reporting category using configured GST rules and transaction data.
+
+Inputs:
+
+```text
+Supplier GSTIN
+Recipient GSTIN
+Recipient registration information
+Place of Supply
+Invoice value
+Supply type
+SEZ/deemed export flags
+```
+
+Example:
+
+```text
+GSTIN present
++
+recipient is registered
+        ↓
+Potential B2B
+```
+
+The system must show:
+
+```text
+Classification:
+B2B
+
+Reason:
+Valid recipient GSTIN found
+```
+
+Never blindly classify without recording the reason.
+
+---
+
+# 11. B2C CLASSIFICATION ENGINE
+
+For unregistered recipients, classify the transaction according to the current GSTR-1 reporting rules applicable to the tax period.
+
+Do NOT hard-code historical B2C thresholds.
+
+Create:
+
+```text
+TaxRuleEngine
+```
+
+with:
+
+```text
+effectiveFrom
+effectiveTo
+ruleType
+threshold
+conditions
+source
+```
+
+This is critical because GSTR-1 reporting thresholds/rules have changed over time. For example, GST Portal documentation reflects the B2C-large threshold change effective from August 2024.
+
+---
+
+# 12. EXPORT CLASSIFICATION
+
+Support relevant export categories and flags.
+
+Validate:
+
+- recipient/customer details
+- place of supply
+- export type
+- taxable value
+- tax treatment
+- shipping bill details where applicable
+- LUT/bond-related information where applicable
+- invoice linkage
+- required fields
+
+Do not make legal assumptions. Build configurable validation rules.
+
+---
+
+# 13. GSTIN VALIDATION
+
+Create GSTIN validation service.
+
+Checks:
+
+```text
+GSTIN format
+GSTIN structure
+State code
+PAN portion
+Check digit
+Recipient/customer mapping
+Historical/customer master consistency
+```
+
+If an official/API verification source is available, allow it to be plugged in.
+
+Output:
+
+```text
+VALID
+INVALID
+NOT_VERIFIED
+NEEDS_REVIEW
+```
+
+Never claim a GSTIN is officially verified unless the system actually received verification from an authoritative source.
+
+---
+
+# 14. GST RATE VALIDATION
+
+Build a tax-rate validation engine.
+
+Input:
+
+```text
+HSN/SAC
+Product/service description
+Tax rate
+Supply type
+Place of supply
+Effective tax period
+Applicable GST rule
+```
+
+Output:
+
+```text
+MATCH
+MISMATCH
+REVIEW_REQUIRED
+UNKNOWN
+```
+
+Example:
+
+```text
+Invoice:
+HSN = XXXXX
+GST rate = 18%
+
+System:
+Reference treatment requires review
+
+Status:
+⚠ REVIEW REQUIRED
+```
+
+Do not present AI classification as legal certainty.
+
+Tax-rate rules must be versioned by effective date.
+
+---
+
+# 15. TAX CALCULATION ENGINE
+
+Automatically calculate expected tax.
+
+Example:
+
+```text
+Taxable Value = ₹100,000
+GST Rate = 18%
+
+Expected GST = ₹18,000
+```
+
+For applicable intra-state/inter-state treatment, calculate:
+
+```text
+IGST
+CGST
+SGST/UTGST
+Cess
+```
+
+Compare:
+
+```text
+Expected
+vs
+Invoice
+vs
+Accounting books
+vs
+GSTR-1 dataset
+```
+
+Flag differences.
+
+Example:
+
+```text
+Expected GST: ₹18,000
+Reported GST: ₹17,000
+
+Difference: ₹1,000
+
+⚠ Tax calculation mismatch
+```
+
+---
+
+# 16. IGST / CGST / SGST VALIDATION
+
+Build transaction-level checks based on:
+
+- supplier state
+- recipient state
+- place of supply
+- supply type
+- applicable GST treatment
+
+Example:
+
+```text
+Supplier:
+Maharashtra
+
+POS:
+Gujarat
+
+Reported:
+CGST ₹9,000
+SGST ₹9,000
+
+System:
+Potential inter-state tax treatment issue
+```
+
+Flag for review instead of automatically changing it.
+
+---
+
+# 17. HSN/SAC ENGINE
+
+Build a centralized product/service master.
+
+```text
+Product
+ ├── Description
+ ├── HSN/SAC
+ ├── UQC
+ ├── GST rate
+ ├── Category
+ └── Effective date
+```
+
+Validate:
+
+- missing HSN/SAC
+- invalid HSN/SAC
+- inconsistent HSN
+- inconsistent GST rate
+- missing UQC where applicable
+- quantity mismatch
+- B2B/B2C HSN summary classification
+
+Current GST Portal functionality separates Table 12 HSN reporting into B2B and B2C tabs from May 2025 and provides an updated HSN/SAC list; build the data model accordingly.
+
+---
+
+# 18. HSN SUMMARY AUTOMATION
+
+Do not ask accountants to manually prepare HSN summaries.
+
+Automatically aggregate:
+
+```text
+HSN/SAC
+Description
+UQC
+Quantity
+Taxable Value
+GST Rate
+IGST
+CGST
+SGST
+Cess
+```
+
+Separate applicable B2B and B2C summaries.
+
+Example:
+
+```text
+HSN 1234
+
+B2B:
+Taxable Value = ₹10,00,000
+IGST = ₹1,80,000
+
+B2C:
+Taxable Value = ₹3,00,000
+CGST = ₹27,000
+SGST = ₹27,000
+```
+
+Then compare HSN totals against invoice-level totals.
+
+---
+
+# 19. DUPLICATE INVOICE DETECTION
+
+Build a sophisticated duplicate engine.
+
+Exact duplicate:
+
+```text
+GSTIN
++
+Invoice Number
++
+Invoice Date
+```
+
+Fuzzy duplicate:
+
+```text
+Customer
++
+Invoice Date
++
+Taxable Value
++
+Tax Amount
++
+Normalized Invoice Number
+```
+
+Use similarity scoring.
+
+Example:
+
+```text
+INV-102
+INV102
+
+Same customer
+Same date
+Same value
+
+Potential duplicate: 94%
+```
+
+Never delete automatically.
+
+Status:
+
+```text
+POSSIBLE_DUPLICATE
+CONFIRMED_DUPLICATE
+FALSE_POSITIVE
+```
+
+---
+
+# 20. INVOICE SEQUENCE CHECK
+
+Check:
+
+```text
+INV-1001
+INV-1002
+INV-1003
+INV-1005
+```
+
+Flag:
+
+```text
+INV-1004 missing
+```
+
+But allow accountant to explain:
+
+```text
+Cancelled
+Not issued
+Different invoice series
+Data import issue
+```
+
+GST Portal documentation also recognizes that multiple invoice series can exist, while duplicate supply invoices within a series/FY are subject to validation.
+
+Therefore do NOT assume every sequence gap is an error.
+
+---
+
+# 21. CREDIT NOTE / DEBIT NOTE ENGINE
+
+Create relationship:
+
+```text
+Original Invoice
+      ↓
+Credit/Debit Note
+      ↓
+Tax impact
+      ↓
+GSTR-1 reporting
+```
+
+Validate:
+
+- original invoice reference
+- note number
+- note date
+- taxable value
+- GST
+- reason/category
+- duplicate note
+- already reported status
+- amendment status
+
+Flag:
+
+```text
+Original invoice not found
+Tax mismatch
+Duplicate credit note
+Incorrect linkage
+Potential over-adjustment
+```
+
+---
+
+# 22. AMENDMENT ENGINE
+
+Maintain historical versions.
+
+Example:
+
+```text
+Original:
+INV-101
+₹100,000
+18% GST
+
+Amended:
+INV-101
+₹120,000
+18% GST
+```
+
+Store:
+
+```text
+Original version
+Amended version
+Difference
+Reason
+Tax impact
+Tax period
+User
+Timestamp
+```
+
+Never overwrite the original record.
+
+---
+
+# 23. GSTR-1A SUPPORT
+
+Include GSTR-1A as a separate correction workflow where applicable.
+
+Current GST Portal documentation describes GSTR-1A as an optional facility for amending/correcting the same-period GSTR-1 before GSTR-3B, with changes flowing to GSTR-3B.
+
+The system should detect:
+
+```text
+GSTR-1 filed
+        ↓
+Error detected
+        ↓
+Is correction window available?
+        ↓
+GSTR-1A workflow
+```
+
+Do not automatically file it.
+
+Create a review task.
+
+---
+
+# 24. DOCUMENTS ISSUED — TABLE 13
+
+Build automatic generation of the documents-issued summary.
+
+Calculate:
+
+```text
+Invoices issued
+Cancelled invoices
+Credit notes
+Debit notes
+Other applicable documents
+```
+
+Compare against accounting records.
+
+Current GST Portal guidance states that Table 13 became mandatory from the May 2025 return period when relevant supply data is reported.
+
+Therefore build a hard validation:
+
+```text
+If applicable supply data exists
+AND
+Table 13 incomplete
+
+→ BLOCK READY-FOR-FILING STATUS
+```
+
+---
+
+# 25. E-COMMERCE MODULE
+
+Support applicable:
+
+- Table 14
+- Table 15
+- Table 14A
+- Table 15A
+
+for relevant e-commerce operator transactions.
+
+The GST Portal introduced Tables 14/15 for relevant ECO supplies and later amendment tables 14A/15A.
+
+Create:
+
+```text
+ECO Master
+- ECO GSTIN
+- Name
+- Section
+- Supply type
+- Reporting period
+```
+
+Validate applicable transactions.
+
+---
+
+# 26. BOOKS ↔ GSTR-1 RECONCILIATION
+
+This should be one of the core features.
+
+Compare:
+
+```text
+Accounting Books
+        ↕
+GSTR-1 Dataset
+```
+
+Match using:
+
+### Primary key
+
+```text
+GSTIN
++
+Invoice Number
++
+Invoice Date
+```
+
+### Secondary matching
+
+```text
+GSTIN
++
+Invoice Number
++
+Taxable Value
+```
+
+### Fuzzy matching
+
+```text
+Customer
++
+Date
++
+Value
++
+Tax
+```
+
+Classify:
+
+```text
+MATCHED
+MISSING_IN_GSTR1
+MISSING_IN_BOOKS
+VALUE_MISMATCH
+TAX_MISMATCH
+GSTIN_MISMATCH
+DATE_MISMATCH
+DUPLICATE
+NEEDS_REVIEW
+```
+
+---
+
+# 27. RECONCILIATION DASHBOARD
+
+Example:
+
+```text
+September 2026
+
+Total Book Invoices: 1,284
+GSTR-1 Records: 1,276
+
+Matched:              1,213
+Missing in GSTR-1:       42
+Missing in Books:         8
+Tax mismatch:             9
+GSTIN mismatch:           5
+Duplicate:                7
+
+Overall:
+94.5% reconciled
+```
+
+Clicking a number must open the actual transactions.
+
+---
+
+# 28. EXCEPTION ENGINE
+
+Create a central exception system.
+
+Every issue should contain:
+
+```text
+Issue ID
+Client
+GSTIN
+Tax period
+Invoice ID
+Issue type
+Severity
+Description
+Source
+Rule ID
+Expected value
+Actual value
+Suggested action
+Status
+Assigned user
+Created timestamp
+Resolved timestamp
+Resolution
+```
+
+Severity:
+
+```text
+CRITICAL
+HIGH
+MEDIUM
+LOW
+INFO
+```
+
+Example:
+
+```text
+HIGH
+
+Invoice:
+INV-1023
+
+Issue:
+Tax amount mismatch
+
+Expected:
+₹18,000
+
+Actual:
+₹16,200
+
+Action:
+Review invoice tax calculation
+```
+
+---
+
+# 29. ACCOUNTANT REVIEW WORKSPACE
+
+The accountant should not work through spreadsheets.
+
+Build an exception inbox:
+
+```text
+64 Issues
+
+🔴 12 Critical
+🟠 24 High
+🟡 28 Medium
+```
+
+Each issue:
+
+```text
+Issue
+↓
+Invoice
+↓
+Original source
+↓
+Expected value
+↓
+Actual value
+↓
+Reason
+↓
+Suggested resolution
+```
+
+Actions:
+
+```text
+Correct
+Accept
+Reject
+Ignore
+Mark as valid
+Ask client
+Assign to colleague
+```
+
+---
+
+# 30. CLIENT QUERY SYSTEM
+
+Allow accountant to create queries directly from errors.
+
+Example:
+
+```text
+Invoice INV-1023
+
+Issue:
+GST rate mismatch
+
+[Ask Client]
+```
+
+Generate:
+
+> Please confirm the GST rate applied to invoice INV-1023 and provide the supporting invoice/document if required.
+
+Client can respond.
+
+Response is attached to the issue.
+
+---
+
+# 31. AI FEATURES
+
+Use AI only where it adds value.
+
+Good AI use cases:
+
+### AI explanation
+
+Explain why an invoice was flagged.
+
+### AI classification assistance
+
+Suggest B2B/B2C/other classification.
+
+### AI anomaly detection
+
+Detect unusual transaction patterns.
+
+### AI duplicate detection
+
+Find potential fuzzy duplicates.
+
+### AI client communication
+
+Generate clarification messages.
+
+### AI issue summarization
+
+Example:
+
+```text
+September GSTR-1 Review
+
+64 issues detected.
+
+Main issues:
+- 18 tax mismatches
+- 12 missing invoices
+- 11 GSTIN issues
+- 9 duplicate candidates
+- 14 HSN/SAC issues
+```
+
+AI must NEVER silently change the return.
+
+---
+
+# 32. RULE ENGINE
+
+This is extremely important.
+
+Do not put GST rules directly inside random controller functions.
+
+Create:
+
+```text
+RuleEngine
+```
+
+Example:
+
+```text
+Rule:
+GST_RATE_CHECK
+
+effectiveFrom:
+2026-04-01
+
+conditions:
+HSN
+SAC
+Supply type
+POS
+Tax rate
+
+action:
+FLAG
+```
+
+Every rule must have:
+
+```text
+ruleId
+version
+effectiveFrom
+effectiveTo
+description
+source
+severity
+```
+
+This allows GST rules to change without rewriting the application.
+
+---
+
+# 33. GST RULE SOURCE MANAGEMENT
+
+Maintain authoritative source references.
+
+Each important rule should have:
+
+```text
+Source:
+GST Portal / Notification / Circular
+
+Source URL
+
+Effective Date
+
+Last Reviewed
+
+Rule Version
+```
+
+Do not allow an LLM to invent tax rules.
+
+For high-risk compliance rules:
+
+```text
+Rule Engine → deterministic validation
+AI → explanation/assistance
+Human → final decision
+```
+
+---
+
+# 34. GSTR-1 DATA GENERATION
+
+After all issues are resolved:
+
+Generate the required structured output.
+
+Support:
+
+```text
+JSON
+Excel
+CSV
+```
+
+Design a GST adapter layer for future GSP/API integration.
+
+The GST Portal supports offline JSON upload and third-party ASP/GSP approaches, so do not tightly couple your internal database model to the GST upload schema.
+
+Architecture:
+
+```text
+Internal Invoice Model
+        ↓
+GSTR1 Transformer
+        ↓
+GSTR1 Validation
+        ↓
+GST Upload Adapter
+        ↓
+GST Portal / GSP
+```
+
+---
+
+# 35. PRE-FILING CHECKLIST
+
+Before allowing the accountant to mark the return as READY:
+
+Check:
+
+```text
+✓ All invoices classified
+✓ Required GSTINs validated
+✓ Tax calculations validated
+✓ IGST/CGST/SGST reviewed
+✓ HSN/SAC reviewed
+✓ Credit notes reviewed
+✓ Debit notes reviewed
+✓ Amendments reviewed
+✓ Books reconciliation completed
+✓ HSN summary generated
+✓ Documents issued completed
+✓ Applicable ECO data reviewed
+✓ No unresolved critical issues
+✓ Accountant approval completed
+✓ CA approval completed where required
+```
+
+Then:
+
+```text
+READY FOR FILING
+```
+
+---
+
+# 36. AUDIT TRAIL
+
+Every important action must be logged.
+
+Example:
+
+```text
+Invoice INV-1002
+
+10:42 AM
+Accountant changed GST rate
+18% → 12%
+
+10:43 AM
+System recalculated tax
+
+10:45 AM
+Accountant added comment:
+"Confirmed with client invoice."
+
+11:05 AM
+CA approved
+
+11:10 AM
+Return locked
+```
+
+Never permanently delete audit history.
+
+---
+
+# 37. DASHBOARD
+
+Main dashboard:
+
+```text
+GSTINs
+Clients
+Pending Returns
+Ready to File
+Issues
+Reconciliation
+```
+
+Client dashboard:
+
+```text
+Client:
+ABC Pvt Ltd
+
+GSTIN:
+27XXXXXXXXXXXXZ
+
+Period:
+September 2026
+
+Sales:
+₹2.43 Cr
+
+Invoices:
+1,284
+
+GSTR-1 Status:
+Review Required
+
+Issues:
+64
+
+Reconciliation:
+94.5%
+
+CA Approval:
+Pending
+```
+
+---
+
+# 38. RETURN STATUS MACHINE
+
+Use explicit states:
+
+```text
+DRAFT
+IMPORTING
+PROCESSING
+VALIDATION_REQUIRED
+RECONCILIATION_REQUIRED
+ACCOUNTANT_REVIEW
+CA_REVIEW
+READY_FOR_FILING
+FILED
+AMENDMENT_REQUIRED
+LOCKED
+```
+
+Never allow arbitrary status changes.
+
+---
+
+# 39. DATABASE DESIGN
+
+Use PostgreSQL for transactional/relational data.
+
+Suggested tables:
+
+```text
+organizations
+users
+roles
+clients
+gst_registrations
+financial_years
+tax_periods
+
+customers
+customer_gstins
+products
+hsn_codes
+gst_rates
+tax_rules
+
+invoices
+invoice_items
+credit_notes
+debit_notes
+invoice_amendments
+
+imports
+import_rows
+validation_results
+exceptions
+
+gstr1_returns
+gstr1_records
+gstr1_summaries
+hsn_summaries
+documents_issued
+eco_transactions
+
+reconciliation_runs
+reconciliation_results
+
+client_queries
+comments
+attachments
+
+approvals
+audit_logs
+notifications
+integration_connections
+```
+
+Use foreign keys and tenant isolation properly.
+
+---
+
+# 40. BACKEND ARCHITECTURE
+
+Recommended:
+
+```text
+Frontend
+Next.js
+
+Backend
+Node.js + TypeScript
+
+API
+REST or GraphQL
+
+Database
+PostgreSQL
+
+Queue
+Redis + BullMQ
+
+Object Storage
+S3-compatible storage
+
+Authentication
+JWT/session + RBAC
+
+AI Service
+Separate AI service/module
+
+Rule Engine
+Separate domain module
+
+Reconciliation Engine
+Separate worker/service
+
+File Processing
+Background workers
+```
+
+Do not process 50,000 invoices synchronously in an HTTP request.
+
+Use:
+
+```text
+Upload
+ ↓
+Create Job
+ ↓
+Queue
+ ↓
+Worker
+ ↓
+Process
+ ↓
+Store Results
+ ↓
+Notify User
+```
+
+---
+
+# 41. FILE PROCESSING
+
+For Excel/CSV:
+
+```text
+Upload
+ ↓
+Validate headers
+ ↓
+Preview
+ ↓
+Map columns
+ ↓
+Normalize
+ ↓
+Validate
+ ↓
+Import
+```
+
+Give the accountant a column-mapping UI.
+
+Example:
+
+```text
+Your column:
+"Party GST No"
+
+Map to:
+customerGSTIN
+```
+
+Save mappings for future uploads from the same client.
+
+---
+
+# 42. PERFORMANCE
+
+Design for:
+
+```text
+1,000 invoices
+10,000 invoices
+100,000 invoices
+```
+
+Use:
+
+- batch processing
+- database indexes
+- background workers
+- pagination
+- streaming file processing
+- bulk inserts
+- caching
+- async validation
+
+Never load 100,000 invoice rows into the browser.
+
+---
+
+# 43. SECURITY
+
+This is financial/tax data.
+
+Implement:
+
+- encryption in transit
+- encryption at rest
+- secure authentication
+- RBAC
+- tenant isolation
+- audit logging
+- secure file storage
+- signed URLs
+- rate limiting
+- CSRF protection where applicable
+- input validation
+- SQL injection protection
+- XSS protection
+- secure secrets management
+- backup strategy
+- data retention policy
+
+Never store GST portal passwords in plain text.
+
+Do not store unnecessary sensitive data.
+
+---
+
+# 44. UI DESIGN
+
+Build a clean professional SaaS interface.
+
+Do NOT make it look like a student project.
+
+Style:
+
+```text
+Clean
+Professional
+Minimal
+Accounting SaaS
+Dense but readable
+Fast
+```
+
+Main navigation:
+
+```text
+Dashboard
+
+Clients
+
+GSTINs
+
+Returns
+ └── GSTR-1
+
+Reconciliation
+
+Exceptions
+
+Reports
+
+Client Queries
+
+Integrations
+
+Audit Logs
+
+Settings
+```
+
+---
+
+# 45. MOST IMPORTANT SCREEN — GSTR-1 WORKSPACE
+
+Create:
+
+```text
+GSTR-1
+ABC Pvt Ltd
+September 2026
+
+Progress:
+████████████░░ 92%
+
+1,284 invoices
+1,213 matched
+64 issues
+7 pending
+```
+
+Tabs:
+
+```text
+Overview
+Invoices
+B2B
+B2C
+Exports
+Credit/Debit Notes
+Amendments
+HSN Summary
+Documents Issued
+E-Commerce
+Reconciliation
+Exceptions
+Review
+Audit Trail
+```
+
+---
+
+# 46. INVOICE TABLE
+
+Columns:
+
+```text
+Status
+Invoice No
+Date
+Customer
+GSTIN
+Type
+Taxable Value
+GST Rate
+IGST
+CGST
+SGST
+HSN
+Validation
+```
+
+Example:
+
+```text
+✓ INV-1001
+✓ INV-1002
+⚠ INV-1003
+🔴 INV-1004
+```
+
+Clicking an invoice opens a detailed side panel.
+
+---
+
+# 47. INVOICE DETAIL PANEL
+
+Show:
+
+```text
+Invoice
+Customer
+GSTIN
+Date
+POS
+
+Taxable Value
+
+GST Rate
+
+IGST
+CGST
+SGST
+Cess
+
+HSN/SAC
+
+Source:
+Tally Import
+
+Validation:
+✓ GSTIN
+✓ Tax calculation
+⚠ HSN
+✓ Duplicate
+```
+
+Then:
+
+```text
+[Correct]
+[Accept]
+[Ask Client]
+[View History]
+```
+
+---
+
+# 48. REPORTS
+
+Generate:
+
+### GSTR-1 Summary
+
+### Books vs GSTR-1
+
+### Exception Report
+
+### HSN Summary
+
+### Tax Summary
+
+### Invoice Error Report
+
+### Missing Invoice Report
+
+### Duplicate Report
+
+### Client Query Report
+
+### Audit Report
+
+Export PDF/Excel where appropriate.
+
+---
+
+# 49. NOTIFICATIONS
+
+Examples:
+
+```text
+GSTR-1 processing completed
+
+64 issues found
+
+Client responded to 4 queries
+
+CA approval required
+
+Return ready for filing
+
+Critical validation error found
+```
+
+---
+
+# 50. TESTING
+
+Create automated tests for:
+
+### Unit tests
+
+- GSTIN validation
+- tax calculation
+- classification
+- duplicate detection
+- HSN aggregation
+- reconciliation
+- invoice matching
+- amendment calculations
+
+### Integration tests
+
+```text
+Excel
+ ↓
+Import
+ ↓
+Normalize
+ ↓
+Validate
+ ↓
+Reconcile
+ ↓
+GSTR-1 output
+```
+
+### Edge cases
+
+Test:
+
+- duplicate invoice
+- cancelled invoice
+- credit note
+- debit note
+- amendment
+- zero-rated supply
+- exempt supply
+- nil-rated supply
+- reverse charge flag
+- SEZ
+- export
+- multi-state customers
+- multiple invoice series
+- missing GSTIN
+- invalid GSTIN
+- missing HSN
+- invalid HSN
+- tax rounding
+- negative values where applicable
+- very large invoice count
+- partial import failure
+
+---
+
+# 51. SAMPLE DATA
+
+Create realistic seed data.
+
+Example client:
+
+```text
+ABC Manufacturing Pvt Ltd
+GSTIN: 27XXXXXXXXXXXXZ
+State: Maharashtra
+```
+
+Generate:
+
+```text
+500 sales invoices
+
+350 B2B
+120 B2C
+10 Export
+10 Credit/Debit Notes
+10 edge cases
+```
+
+Include intentionally incorrect records:
+
+```text
+5 duplicate invoices
+5 invalid GSTIN
+5 GST calculation mismatch
+5 HSN issues
+5 missing invoices
+5 wrong tax component
+5 sequence gaps
+5 credit note issues
+```
+
+The dashboard should automatically detect them.
+
+---
+
+# 52. AI ARCHITECTURE
+
+Do not put all AI logic into one prompt.
+
+Create separate services:
+
+```text
+AI Invoice Analyzer
+AI Duplicate Detector
+AI Anomaly Detector
+AI Classification Assistant
+AI Explanation Generator
+AI Client Message Generator
+```
+
+AI output must always be structured:
+
+```json
+{
+  "issueType": "TAX_RATE_REVIEW",
+  "confidence": 0.91,
+  "reason": "...",
+  "evidence": [],
+  "recommendedAction": "REVIEW",
+  "requiresHumanApproval": true
+}
+```
+
+---
+
+# 53. AI SAFETY
+
+The AI must NOT:
+
+- invent GST rules
+- invent GST rates
+- automatically decide legal treatment
+- automatically modify invoices
+- automatically file returns
+- hide validation failures
+
+The AI can:
+
+- identify patterns
+- explain discrepancies
+- suggest possible causes
+- generate questions
+- summarize exceptions
+- assist the accountant
+
+The deterministic rule engine should handle critical calculations.
+
+---
+
+# 54. GSTR-1 VALIDATION RULE EXAMPLES
+
+Create rules like:
+
+```text
+GSTR1-B2B-001
+Recipient GSTIN missing
+
+GSTR1-B2B-002
+Recipient GSTIN invalid
+
+GSTR1-INV-001
+Invoice number missing
+
+GSTR1-INV-002
+Invoice number exceeds allowed format
+
+GSTR1-INV-003
+Duplicate invoice
+
+GSTR1-TAX-001
+GST calculation mismatch
+
+GSTR1-TAX-002
+Potential IGST/CGST/SGST mismatch
+
+GSTR1-HSN-001
+HSN/SAC missing
+
+GSTR1-HSN-002
+HSN/SAC invalid
+
+GSTR1-CN-001
+Credit note original invoice missing
+
+GSTR1-REC-001
+Books invoice missing in GSTR-1
+
+GSTR1-REC-002
+GSTR-1 invoice missing in books
+
+GSTR1-DOC-001
+Documents issued summary mismatch
+```
+
+---
+
+# 55. DO NOT BUILD THESE AS FAKE FEATURES
+
+Do NOT create buttons such as:
+
+```text
+"File GSTR-1"
+"Verify GSTIN"
+"Check GST rate"
+```
+
+that merely show fake success messages.
+
+Every feature must have a real backend workflow or clearly be marked as a prototype/mock.
+
+For integrations that cannot yet be implemented, create a proper adapter interface and mock implementation with obvious development status.
+
+---
+
+# 56. DEVELOPMENT PHASES
+
+Build incrementally.
+
+## Phase 1 — Foundation
+
+- authentication
+- organizations
+- users
+- clients
+- GSTIN management
+- database
+- RBAC
+
+## Phase 2 — Data Import
+
+- Excel
+- CSV
+- column mapping
+- invoice normalization
+- import history
+
+## Phase 3 — Validation Engine
+
+- GSTIN checks
+- invoice checks
+- tax calculation
+- IGST/CGST/SGST checks
+- duplicate detection
+- HSN/SAC checks
+
+## Phase 4 — GSTR-1 Engine
+
+- B2B
+- B2C
+- exports
+- credit/debit notes
+- amendments
+- HSN summary
+- documents issued
+- applicable ECO tables
+
+## Phase 5 — Reconciliation
+
+```text
+Books ↔ GSTR-1
+```
+
+## Phase 6 — Accountant Workspace
+
+- exception inbox
+- issue assignment
+- review
+- corrections
+- comments
+- client queries
+
+## Phase 7 — CA Approval
+
+- review
+- approval
+- lock
+- audit trail
+
+## Phase 8 — GSTR-1 Output
+
+- JSON
+- Excel
+- CSV
+- GST/GSP adapter
+
+## Phase 9 — AI
+
+- anomaly detection
+- duplicate suggestions
+- explanations
+- client communication
+
+## Phase 10 — Production Hardening
+
+- security
+- monitoring
+- logging
+- backups
+- performance
+- testing
+
+---
+
+# 57. DO NOT OVERBUILD THE MVP
+
+The MVP should focus on this workflow:
+
+```text
+Excel/Tally Sales Register
+          ↓
+Import
+          ↓
+Normalize
+          ↓
+B2B/B2C classification
+          ↓
+GSTIN validation
+          ↓
+Tax calculation validation
+          ↓
+HSN validation
+          ↓
+Duplicate detection
+          ↓
+Books ↔ GSTR-1 reconciliation
+          ↓
+HSN summary
+          ↓
+Documents issued
+          ↓
+Exception dashboard
+          ↓
+Accountant review
+          ↓
+GSTR-1 JSON/Excel output
+```
+
+Do not start with every possible GST feature.
+
+First make this workflow extremely reliable.
+
+---
+
+# 58. PRODUCT SUCCESS METRICS
+
+Measure:
+
+```text
+Invoices processed
+Invoices automatically validated
+% automatically matched
+% exceptions detected
+Average accountant review time
+Issues resolved
+Client queries generated
+Manual corrections
+Processing time
+Import failure rate
+False-positive rate
+```
+
+Most important:
+
+> **How many manual hours does the product save per GSTIN per filing period?**
+
+Example:
+
+Before:
+
+```text
+1,000 invoices
+6–8 hours manual checking
+```
+
+After:
+
+```text
+1,000 invoices
+15–30 minutes system processing
+1–2 hours exception review
+```
+
+The objective is not "100% automation."
+
+The objective is:
+
+> **Automate the repetitive 80–90% and bring the accountant directly to the exceptions.**
+
+---
+
+# 59. FINAL DEVELOPMENT REQUIREMENT
+
+Before writing significant code:
+
+1. Research the current official GST Portal GSTR-1 documentation.
+2. Identify all currently applicable GSTR-1 tables and fields.
+3. Identify which rules are tax-period dependent.
+4. Create a GST rule/version architecture.
+5. Design the database.
+6. Design the import pipeline.
+7. Design the validation engine.
+8. Design the reconciliation engine.
+9. Design the accountant workflow.
+10. Then implement.
+
+For every GST-specific feature, document:
+
+```text
+Feature
+↓
+Business purpose
+↓
+GST table
+↓
+Input data
+↓
+Validation rule
+↓
+Expected output
+↓
+Possible errors
+↓
+Human review requirement
+↓
+Source/reference
+```
+
+Use official GST Portal documentation as the primary source for GST workflow and portal behavior. Do not rely on outdated third-party blogs when the official documentation is available. The GST Portal currently documents online/offline preparation, e-invoice data population, B2B/B2C workflows, HSN reporting, documents issued, amendments, and ECO-related tables.
+
+## DELIVERABLES
+
+Produce:
+
+1. Product requirements document
+2. System architecture
+3. Database schema
+4. API specification
+5. GST rule engine architecture
+6. GSTR-1 data model
+7. Validation rule catalogue
+8. Reconciliation algorithm
+9. UI/UX page structure
+10. RBAC architecture
+11. AI architecture
+12. Security architecture
+13. Test strategy
+14. Seed/demo dataset
+15. Implementation roadmap
+16. Production-ready code
+
+Do not skip directly to UI.
+
+First establish the **GST domain model + rule engine + data model + workflow**, because those are the foundation of the product.

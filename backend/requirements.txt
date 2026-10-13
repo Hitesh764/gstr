@@ -1,0 +1,44 @@
+# --- Web framework ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+
+# --- Data model / persistence ---
+sqlalchemy==2.0.35
+alembic==1.13.3
+
+# --- Configuration ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
+
+# --- Authentication & cryptography ---
+argon2-cffi==23.1.0        # password hashing
+PyJWT==2.9.0               # access tokens
+cryptography==43.0.1       # Fernet encryption for GSP tokens / TOTP secrets
+pyotp==2.9.0               # time-based one-time passwords (2FA)
+slowapi==0.1.9             # rate limiting
+
+# --- Background jobs ---
+celery==5.4.0              # scheduled GSTR-2B fetch, retries, token refresh
+redis==5.0.8               # broker client
+
+# --- File parsing / export ---
+pandas==2.2.3
+openpyxl==3.1.5
+xlrd==2.0.2                # legacy .xls workbooks
+
+# --- Testing ---
+pytest==8.3.3
+httpx==0.27.2              # required by fastapi.testclient
+
+# --- PostgreSQL driver ---
+# Local development uses SQLite and does not need this. Install when
+# pointing DATABASE_URL at PostgreSQL:
+psycopg[binary]==3.2.3
+
+# --- GST notices ---
+pypdf==6.19.0              # reads the text layer of digital PDFs (pure Python)
+anthropic==1.7.0           # Claude API client for notice analysis and drafting
+# Optional, for photographed notices only (also needs the Tesseract program):
+#   pytesseract, pillow
